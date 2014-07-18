@@ -2,19 +2,67 @@
 
 
 ## Loading and preprocessing the data
-
+```{r}
+unzip ("activity.zip", "activity.csv")
+df <- read.csv("activity.csv")
+df$date <- strptime(df$date, "%Y-%m-%d")
+library(plyr)
+```
 
 
 ## What is mean total number of steps taken per day?
+```{r}
+means <- ddply(df, .(date), sum=sum(steps), summarise)
+barplot(means$sum)
+mean_steps <- mean(means$sum[!is.na(means$sum)])
+median_steps <- median(means$sum[!is.na(means$sum)])
+```
 
-
+Mean number of steps is `r mean_steps`, median is `r median_steps`
 
 ## What is the average daily activity pattern?
+```{r}
+intervals <- ddply(df, .(interval), mean=mean(steps, na.rm=T), summarise)
+plot(intervals$mean, type='l', xlab="5-min interval", ylab="Avg steps")
+max_idx <- which.max(intervals$mean)
+```
 
-
+5-minute interval with max avg steps is `r max_idx`
 
 ## Imputing missing values
+```{r}
+nas <- is.na (df$steps)
+na_count <- sum (nas)
 
+dfall <- data.frame(date=df$date, interval=df$interval, steps=df$steps)
 
+for (i in which(nas)) {
+  dfall$steps[i] <- intervals$mean[intervals$interval == df$interval[i]]
+}
+
+means_all <- ddply(dfall, .(date), mean=mean(steps), sum=sum(steps), summarise)
+barplot(means_all$sum)
+mean_all_steps <- mean(means_all$sum)
+median_all_steps <- median(means_all$sum)
+```
+
+Total amount of NAs is `r na_count`
+
+Mean number of steps for dataset without NAs is `r mean_all_steps`, median is `r median_all_steps`
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+wd <- weekdays(dfall$date)
+we <- wd == "Saturday" | wd == "Sunday"
+dfall <- data.frame(dfall, weekend=factor(we, labels=c("weekday", "weekend")))
+
+wd_means <- ddply(dfall[dfall$weekend == "weekday",], .(interval), mean=mean(steps), summarise)
+we_means <- ddply(dfall[dfall$weekend == "weekend",], .(interval), mean=mean(steps), summarise)
+
+opar <- par(no.readonly=T)
+par(mfrow=c(2,1))
+plot(we_means$mean, type='l', main="weekend", xlab="5-min interval", ylab="Mean steps")
+plot(wd_means$mean, type='l', main="weekday", xlab="5-min interval", ylab="Mean steps")
+par(opar)
+```
